@@ -1,36 +1,74 @@
+import { useState } from "react";
 import { LabTestWizard } from "@/components/LabTestWizard";
-import { Stethoscope, FlaskConical } from "lucide-react";
+import { PatientSearch } from "@/components/PatientSearch";
+import { CategoryManagement } from "@/components/CategoryManagement";
+import { PatientHistory } from "@/components/PatientHistory";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface Patient {
+  id: string;
+  patient_id: string;
+  name: string;
+  date_of_birth?: string;
+  gender?: string;
+  phone?: string;
+  address?: string;
+  assandha_data?: any;
+}
 
 const Index = () => {
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleCategoriesUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const handleTestsSaved = () => {
+    // Force refresh of patient history
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-medical-blue-light/10 to-medical-green-light/10">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-medical-blue to-medical-green text-white shadow-medical">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Stethoscope className="h-8 w-8" />
-              <FlaskConical className="h-8 w-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Lab Test Wizard</h1>
-              <p className="text-white/80">Professional Laboratory Test Selection System</p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-medical-blue-light to-medical-green-light p-4">
+      <div className="container mx-auto max-w-7xl">
+        <header className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-medical-blue to-medical-green bg-clip-text text-transparent mb-2">
+            Laboratory Test Management System
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Professional lab test selection and management for healthcare assistants
+          </p>
+        </header>
+        
+        <Tabs defaultValue="tests" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="tests">Lab Test Selection</TabsTrigger>
+            <TabsTrigger value="management">Category Management</TabsTrigger>
+            <TabsTrigger value="history">Patient History</TabsTrigger>
+          </TabsList>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <LabTestWizard />
-      </main>
+          <TabsContent value="tests" className="space-y-6">
+            <PatientSearch 
+              onPatientSelect={setSelectedPatient} 
+              selectedPatient={selectedPatient}
+            />
+            <LabTestWizard 
+              key={refreshKey}
+              patient={selectedPatient} 
+              onSaveTests={handleTestsSaved}
+            />
+          </TabsContent>
 
-      {/* Footer */}
-      <footer className="mt-12 bg-card border-t border-border">
-        <div className="container mx-auto px-4 py-4 text-center text-muted-foreground">
-          <p>Professional Lab Test Management System • Built for Medical Excellence</p>
-        </div>
-      </footer>
+          <TabsContent value="management">
+            <CategoryManagement onCategoriesUpdate={handleCategoriesUpdate} />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <PatientHistory key={refreshKey} patient={selectedPatient} />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

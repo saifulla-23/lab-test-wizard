@@ -1,13 +1,14 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getCategories } from "@/data/labTests";
+import { getAllCategories, CustomCategory } from "@/data/labTests";
 
 interface CategorySelectorProps {
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
+  customCategories?: CustomCategory[];
 }
 
-export const CategorySelector = ({ selectedCategory, onCategoryChange }: CategorySelectorProps) => {
-  const categories = getCategories();
+export const CategorySelector = ({ selectedCategory, onCategoryChange, customCategories = [] }: CategorySelectorProps) => {
+  const categories = getAllCategories(customCategories);
 
   return (
     <div className="space-y-2">

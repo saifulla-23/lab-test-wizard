@@ -7,6 +7,20 @@ export interface LabTest {
   description?: string;
 }
 
+export interface CustomCategory {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface CustomTest {
+  id: string;
+  name: string;
+  category_id: string;
+  code?: string;
+  description?: string;
+}
+
 export const labTestsDatabase: LabTest[] = [
   // Hematology
   { id: "h1", name: "Complete Blood Count (CBC)", category: "Hematology", code: "CBC", description: "Full blood cell analysis" },
@@ -66,4 +80,31 @@ export const getCategories = (): string[] => {
 
 export const getTestsByCategory = (category: string): LabTest[] => {
   return labTestsDatabase.filter(test => test.category === category);
+};
+
+// Combine static and custom categories
+export const getAllCategories = (customCategories: CustomCategory[] = []): string[] => {
+  const staticCategories = getCategories();
+  const customCategoryNames = customCategories.map(c => c.name);
+  return [...staticCategories, ...customCategoryNames].sort();
+};
+
+// Combine static and custom tests
+export const getAllTestsByCategory = (category: string, customTests: CustomTest[] = [], customCategories: CustomCategory[] = []): LabTest[] => {
+  // Get static tests
+  const staticTests = getTestsByCategory(category);
+  
+  // Get custom tests for this category
+  const categoryObj = customCategories.find(c => c.name === category);
+  const customTestsForCategory = categoryObj 
+    ? customTests.filter(t => t.category_id === categoryObj.id).map(t => ({
+        id: t.id,
+        name: t.name,
+        category: category,
+        code: t.code,
+        description: t.description
+      }))
+    : [];
+  
+  return [...staticTests, ...customTestsForCategory];
 };

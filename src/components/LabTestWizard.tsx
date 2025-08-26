@@ -1,20 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CategorySelector } from "./CategorySelector";
 import { TestsList } from "./TestsList";
 import { SelectedTests } from "./SelectedTests";
-import { LabTest, getTestsByCategory } from "@/data/labTests";
+import { LabTest, getAllTestsByCategory, CustomCategory, CustomTest } from "@/data/labTests";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, RotateCcw } from "lucide-react";
+import { Trash2, RotateCcw, Save } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-export const LabTestWizard = () => {
+interface LabTestWizardProps {
+  patient?: { id: string; name: string; patient_id: string } | null;
+  onSaveTests?: (tests: LabTest[]) => void;
+}
+
+export const LabTestWizard = ({ patient, onSaveTests }: LabTestWizardProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTests, setSelectedTests] = useState<LabTest[]>([]);
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
+  const [customTests, setCustomTests] = useState<CustomTest[]>([]);
   const { toast } = useToast();
 
-  const availableTests = selectedCategory ? getTestsByCategory(selectedCategory) : [];
+  const availableTests = selectedCategory ? getAllTestsByCategory(selectedCategory, customTests, customCategories) : [];
+
+  useEffect(() => {
+    fetchCustomData();
+  }, []);
+
+  const fetchCustomData = async () => {
+    try {
+      const [categoriesResult, testsResult] = await Promise.all([
+        supabase.from('custom_categories').select('*').order('name'),
+        supabase.from('custom_tests').select('*').order('name')
+      ]);
+
+      if (categoriesResult.data) setCustomCategories(categoriesResult.data);
+      if (testsResult.data) setCustomTests(testsResult.data);
+    } catch (error) {
+      console.error('Error fetching custom data:', error);
+    }
+  };
 
   const handleSelectTest = (test: LabTest) => {
     if (!selectedTests.some(selected => selected.id === test.id)) {
@@ -42,6 +68,48 @@ export const LabTestWizard = () => {
       description: "Your test selection has been cleared.",
       variant: "destructive",
     });
+  };
+
+  const handleSaveToPatient = async () => {
+    if (!patient || selectedTests.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a patient and tests before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('patient_test_selections')
+        .insert([{
+          patient_id: patient.id,
+          tests: selectedTests as any,
+          status: 'pending'
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Tests Saved",
+        description: `${selectedTests.length} tests saved for ${patient.name}.`,
+      });
+
+      if (onSaveTests) {
+        onSaveTests(selectedTests);
+      }
+
+      // Clear selection after saving
+      setSelectedTests([]);
+    } catch (error) {
+      console.error('Error saving tests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save tests. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExport = () => {
@@ -81,10 +149,21 @@ export const LabTestWizard = () => {
           <CategorySelector
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
+            customCategories={customCategories}
           />
           
           {selectedTests.length > 0 && (
             <div className="flex gap-2">
+              {patient && (
+                <Button
+                  size="sm"
+                  onClick={handleSaveToPatient}
+                  className="bg-medical-green hover:bg-medical-green/90 text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save to Patient
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
