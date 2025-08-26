@@ -8,33 +8,46 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 248 100% 99%;
+    --foreground: 216 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 216 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 216 25% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 203 91% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 45% 96%;
+    --secondary-foreground: 216 25% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 169 100% 95%;
+    --accent-foreground: 169 84% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 203 91% 48%;
+
+    --medical-blue: 203 91% 48%;
+    --medical-blue-light: 203 91% 92%;
+    --medical-green: 169 84% 35%;
+    --medical-green-light: 169 100% 95%;
+    --medical-pink: 330 85% 92%;
+    --medical-pink-accent: 330 73% 85%;
+    
+    --gradient-medical: linear-gradient(135deg, hsl(var(--medical-blue)), hsl(var(--medical-green)));
+    --gradient-header: linear-gradient(90deg, hsl(var(--medical-blue)) 0%, hsl(var(--medical-green)) 100%);
+    
+    --shadow-medical: 0 4px 12px hsl(var(--medical-blue) / 0.15);
+    --shadow-card: 0 2px 8px hsl(216 25% 15% / 0.08);
 
     --radius: 0.5rem;
 
