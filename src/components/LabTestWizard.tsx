@@ -92,8 +92,8 @@ export const LabTestWizard = ({ patient, onSaveTests }: LabTestWizardProps) => {
       if (error) throw error;
 
       toast({
-        title: "Tests Saved",
-        description: `${selectedTests.length} tests saved for ${patient.name}.`,
+        title: "Tests Saved & Redirecting",
+        description: `${selectedTests.length} tests saved for ${patient.name}. Redirecting to patient history...`,
       });
 
       if (onSaveTests) {
@@ -102,6 +102,14 @@ export const LabTestWizard = ({ patient, onSaveTests }: LabTestWizardProps) => {
 
       // Clear selection after saving
       setSelectedTests([]);
+      
+      // Auto-redirect to patient history after 1 second
+      setTimeout(() => {
+        const historyTab = document.querySelector('[value="history"]') as HTMLElement;
+        if (historyTab) {
+          historyTab.click();
+        }
+      }, 1000);
     } catch (error) {
       console.error('Error saving tests:', error);
       toast({
@@ -152,38 +160,40 @@ export const LabTestWizard = ({ patient, onSaveTests }: LabTestWizardProps) => {
             customCategories={customCategories}
           />
           
-          {selectedTests.length > 0 && (
-            <div className="flex gap-2">
-              {patient && (
+          <div className="flex gap-2">
+            {patient && selectedTests.length > 0 && (
+              <Button
+                size="sm"
+                onClick={handleSaveToPatient}
+                className="bg-medical-green hover:bg-medical-green/90 text-white"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save & Go to History
+              </Button>
+            )}
+            {selectedTests.length > 0 && (
+              <>
                 <Button
+                  variant="outline"
                   size="sm"
-                  onClick={handleSaveToPatient}
-                  className="bg-medical-green hover:bg-medical-green/90 text-white"
+                  onClick={handleClearAll}
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save to Patient
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearAll}
-                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedCategory("")}
-                className="border-muted-foreground text-muted-foreground hover:bg-muted"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Category
-              </Button>
-            </div>
-          )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedCategory("")}
+                  className="border-muted-foreground text-muted-foreground hover:bg-muted"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Category
+                </Button>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 

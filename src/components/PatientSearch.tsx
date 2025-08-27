@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, User, Calendar, Phone, MapPin } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, User, Calendar, Phone, MapPin, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,8 @@ interface Patient {
   phone?: string;
   address?: string;
   assandha_data?: any;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PatientSearchProps {
@@ -27,7 +29,57 @@ export const PatientSearch = ({ onPatientSelect, selectedPatient }: PatientSearc
   const [patientId, setPatientId] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
+  const [latestTestDate, setLatestTestDate] = useState<string>("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchRecentPatients();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPatient) {
+      fetchLatestTestDate(selectedPatient.id);
+    }
+  }, [selectedPatient]);
+
+  const fetchRecentPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      setRecentPatients(data || []);
+    } catch (error) {
+      console.error('Error fetching recent patients:', error);
+    }
+  };
+
+  const fetchLatestTestDate = async (patientId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('patient_test_selections')
+        .select('created_at')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setLatestTestDate(new Date(data.created_at).toLocaleDateString());
+      } else {
+        setLatestTestDate("No previous tests");
+      }
+    } catch (error) {
+      console.error('Error fetching latest test date:', error);
+      setLatestTestDate("Error loading date");
+    }
+  };
 
   const fetchFromAssandha = async (id: string) => {
     // Mock Assandha API response - replace with actual API call
@@ -139,6 +191,39 @@ export const PatientSearch = ({ onPatientSelect, selectedPatient }: PatientSearc
           </Button>
         </div>
 
+        {!selectedPatient && recentPatients.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Recent Patients
+            </h4>
+            <div className="grid gap-2">
+              {recentPatients.map((patient) => (
+                <Card 
+                  key={patient.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    setPatientId(patient.patient_id);
+                    onPatientSelect(patient);
+                  }}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-sm">{patient.name}</div>
+                        <div className="text-xs text-muted-foreground">ID: {patient.patient_id}</div>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {new Date(patient.updated_at || patient.created_at).toLocaleDateString()}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {selectedPatient && (
           <Card className="bg-gradient-to-r from-medical-blue-light/10 to-medical-green-light/10">
             <CardContent className="p-4">
@@ -180,6 +265,11 @@ export const PatientSearch = ({ onPatientSelect, selectedPatient }: PatientSearc
                       <span>{selectedPatient.address}</span>
                     </div>
                   )}
+
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-medical-blue" />
+                    <span>Last Test: {latestTestDate}</span>
+                  </div>
                 </div>
 
                 {selectedPatient.assandha_data && (
