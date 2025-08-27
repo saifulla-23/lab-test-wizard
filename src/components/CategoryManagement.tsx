@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Category {
   id: string;
@@ -33,7 +34,10 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [newTest, setNewTest] = useState({ name: "", code: "", description: "", category_id: "" });
   const [showAddCategory, setShowAddCategory] = useState(false);
-  const [showAddTest, setShowAddTest] = useState(false);
+  const [showAddTest, setShowAddTest] = useState<string | null>(null);
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+  const [editCategoryData, setEditCategoryData] = useState<{ id: string; name: string; description: string }>({ id: "", name: "", description: "" });
+  const [editTestData, setEditTestData] = useState<{ id: string; name: string; code: string; description: string }>({ id: "", name: "", code: "", description: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,6 +69,14 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
       return;
     }
     setTests(data || []);
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
 
   const handleAddCategory = async () => {
@@ -100,11 +112,44 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
     });
   };
 
-  const handleAddTest = async () => {
-    if (!newTest.name.trim() || !newTest.category_id) {
+  const handleUpdateCategory = async () => {
+    if (!editCategoryData.name.trim()) {
       toast({
         title: "Error",
-        description: "Test name and category are required",
+        description: "Category name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('custom_categories')
+      .update({ name: editCategoryData.name, description: editCategoryData.description })
+      .eq('id', editCategoryData.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditingCategory(null);
+    fetchCategories();
+    onCategoriesUpdate();
+    toast({
+      title: "Success",
+      description: "Category updated successfully",
+    });
+  };
+
+  const handleAddTest = async (categoryId: string) => {
+    if (!newTest.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Test name is required",
         variant: "destructive",
       });
       return;
@@ -112,7 +157,7 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
 
     const { error } = await supabase
       .from('custom_tests')
-      .insert([newTest]);
+      .insert([{ ...newTest, category_id: categoryId }]);
 
     if (error) {
       toast({
@@ -124,11 +169,47 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
     }
 
     setNewTest({ name: "", code: "", description: "", category_id: "" });
-    setShowAddTest(false);
+    setShowAddTest(null);
     fetchTests();
     toast({
       title: "Success",
       description: "Test added successfully",
+    });
+  };
+
+  const handleUpdateTest = async () => {
+    if (!editTestData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Test name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('custom_tests')
+      .update({ 
+        name: editTestData.name, 
+        code: editTestData.code, 
+        description: editTestData.description 
+      })
+      .eq('id', editTestData.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update test",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditingTest(null);
+    fetchTests();
+    toast({
+      title: "Success",
+      description: "Test updated successfully",
     });
   };
 
@@ -178,13 +259,37 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
     });
   };
 
+  const getTestsForCategory = (categoryId: string) => {
+    return tests.filter(test => test.category_id === categoryId);
+  };
+
+  const startEditCategory = (category: Category) => {
+    setEditCategoryData({
+      id: category.id,
+      name: category.name,
+      description: category.description || ""
+    });
+    setEditingCategory(category.id);
+  };
+
+  const startEditTest = (test: Test) => {
+    setEditTestData({
+      id: test.id,
+      name: test.name,
+      code: test.code || "",
+      description: test.description || ""
+    });
+    setEditingTest(test.id);
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Categories Management */}
+    <div className="space-y-6">
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg text-medical-blue">Test Categories</CardTitle>
+            <CardTitle className="text-2xl bg-gradient-to-r from-medical-blue to-medical-green bg-clip-text text-transparent">
+              Test Categories & Tests Management
+            </CardTitle>
             <Button
               size="sm"
               onClick={() => setShowAddCategory(true)}
@@ -195,7 +300,7 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           {showAddCategory && (
             <Card className="border-medical-blue/20">
               <CardContent className="p-4 space-y-3">
@@ -224,104 +329,188 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
           )}
 
           {categories.map((category) => (
-            <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <div className="font-medium">{category.name}</div>
-                {category.description && (
-                  <div className="text-sm text-muted-foreground">{category.description}</div>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleDeleteCategory(category.id)}
-                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            <Card key={category.id} className="border-medical-blue/20">
+              <Collapsible
+                open={openCategories.includes(category.id)}
+                onOpenChange={() => toggleCategory(category.id)}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="pb-3 cursor-pointer hover:bg-medical-blue-light/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {openCategories.includes(category.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        <div>
+                          <CardTitle className="text-lg text-medical-blue">{category.name}</CardTitle>
+                          {category.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" onClick={() => startEditCategory(category)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteCategory(category.id)}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
 
-      {/* Tests Management */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg text-medical-green">Available Tests</CardTitle>
-            <Button
-              size="sm"
-              onClick={() => setShowAddTest(true)}
-              className="bg-medical-green hover:bg-medical-green/90 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Test
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {showAddTest && (
-            <Card className="border-medical-green/20">
-              <CardContent className="p-4 space-y-3">
-                <Input
-                  placeholder="Test name"
-                  value={newTest.name}
-                  onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
-                />
-                <Input
-                  placeholder="Test code (optional)"
-                  value={newTest.code}
-                  onChange={(e) => setNewTest({ ...newTest, code: e.target.value })}
-                />
-                <select
-                  className="w-full p-2 border rounded-md"
-                  value={newTest.category_id}
-                  onChange={(e) => setNewTest({ ...newTest, category_id: e.target.value })}
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-                <Textarea
-                  placeholder="Description (optional)"
-                  value={newTest.description}
-                  onChange={(e) => setNewTest({ ...newTest, description: e.target.value })}
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAddTest}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowAddTest(false)}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    {editingCategory === category.id && (
+                      <Card className="border-medical-green/20 mb-4">
+                        <CardContent className="p-4 space-y-3">
+                          <Input
+                            placeholder="Category name"
+                            value={editCategoryData.name}
+                            onChange={(e) => setEditCategoryData({ ...editCategoryData, name: e.target.value })}
+                          />
+                          <Textarea
+                            placeholder="Description (optional)"
+                            value={editCategoryData.description}
+                            onChange={(e) => setEditCategoryData({ ...editCategoryData, description: e.target.value })}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleUpdateCategory}>
+                              <Save className="h-4 w-4 mr-2" />
+                              Update
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-md font-medium text-medical-green">Tests in this category</h4>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowAddTest(category.id)}
+                          className="bg-medical-green hover:bg-medical-green/90 text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Test
+                        </Button>
+                      </div>
+
+                      {showAddTest === category.id && (
+                        <Card className="border-medical-green/20">
+                          <CardContent className="p-4 space-y-3">
+                            <Input
+                              placeholder="Test name"
+                              value={newTest.name}
+                              onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
+                            />
+                            <Input
+                              placeholder="Test code (optional)"
+                              value={newTest.code}
+                              onChange={(e) => setNewTest({ ...newTest, code: e.target.value })}
+                            />
+                            <Textarea
+                              placeholder="Description (optional)"
+                              value={newTest.description}
+                              onChange={(e) => setNewTest({ ...newTest, description: e.target.value })}
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => handleAddTest(category.id)}>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setShowAddTest(null)}>
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {getTestsForCategory(category.id).map((test) => (
+                        <div key={test.id} className="border rounded-lg p-3">
+                          {editingTest === test.id ? (
+                            <Card className="border-medical-green/20">
+                              <CardContent className="p-4 space-y-3">
+                                <Input
+                                  placeholder="Test name"
+                                  value={editTestData.name}
+                                  onChange={(e) => setEditTestData({ ...editTestData, name: e.target.value })}
+                                />
+                                <Input
+                                  placeholder="Test code (optional)"
+                                  value={editTestData.code}
+                                  onChange={(e) => setEditTestData({ ...editTestData, code: e.target.value })}
+                                />
+                                <Textarea
+                                  placeholder="Description (optional)"
+                                  value={editTestData.description}
+                                  onChange={(e) => setEditTestData({ ...editTestData, description: e.target.value })}
+                                />
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={handleUpdateTest}>
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Update
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingTest(null)}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{test.name}</div>
+                                {test.code && <div className="text-sm text-medical-green">Code: {test.code}</div>}
+                                {test.description && <div className="text-sm text-muted-foreground">{test.description}</div>}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => startEditTest(test)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteTest(test.id)}
+                                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {getTestsForCategory(category.id).length === 0 && (
+                        <p className="text-muted-foreground text-center py-4">No tests in this category yet</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
-          )}
+          ))}
 
-          {tests.map((test) => {
-            const category = categories.find(c => c.id === test.category_id);
-            return (
-              <div key={test.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <div className="font-medium">{test.name}</div>
-                  {test.code && <div className="text-sm text-medical-green">Code: {test.code}</div>}
-                  {category && <div className="text-sm text-muted-foreground">Category: {category.name}</div>}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDeleteTest(test.id)}
-                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          })}
+          {categories.length === 0 && (
+            <p className="text-muted-foreground text-center py-8">No categories created yet. Add your first category above!</p>
+          )}
         </CardContent>
       </Card>
     </div>

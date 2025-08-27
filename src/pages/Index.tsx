@@ -41,23 +41,25 @@ const Index = () => {
           </p>
         </header>
         
-        <Tabs defaultValue="tests" className="space-y-6">
+        <Tabs defaultValue="patient" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="tests">Lab Test Selection</TabsTrigger>
+            <TabsTrigger value="patient">Patient & Lab Tests</TabsTrigger>
             <TabsTrigger value="management">Category Management</TabsTrigger>
             <TabsTrigger value="history">Patient History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="tests" className="space-y-6">
+          <TabsContent value="patient" className="space-y-6">
             <PatientSearch 
               onPatientSelect={setSelectedPatient} 
               selectedPatient={selectedPatient}
             />
-            <LabTestWizard 
-              key={refreshKey}
-              patient={selectedPatient} 
-              onSaveTests={handleTestsSaved}
-            />
+            {selectedPatient && (
+              <LabTestWizard 
+                key={refreshKey}
+                patient={selectedPatient} 
+                onSaveTests={handleTestsSaved}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="management">
