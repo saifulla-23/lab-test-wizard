@@ -23,7 +23,7 @@ interface TestSelection {
 }
 
 interface PatientHistoryProps {
-  patient: Patient | null;
+  patient?: Patient | null;
 }
 
 export const PatientHistory = ({ patient }: PatientHistoryProps) => {

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { LabTestWizard } from "@/components/LabTestWizard";
-import { PatientSearch } from "@/components/PatientSearch";
+import { PatientsManagement } from "@/components/PatientsManagement";
 import { CategoryManagement } from "@/components/CategoryManagement";
 import { PatientHistory } from "@/components/PatientHistory";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,15 +16,9 @@ interface Patient {
 }
 
 const Index = () => {
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCategoriesUpdate = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
-  const handleTestsSaved = () => {
-    // Force refresh of patient history
     setRefreshKey(prev => prev + 1);
   };
 
@@ -41,25 +34,15 @@ const Index = () => {
           </p>
         </header>
         
-        <Tabs defaultValue="patient" className="space-y-6">
+        <Tabs defaultValue="patients" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="patient">Patient & Lab Tests</TabsTrigger>
+            <TabsTrigger value="patients">Patients</TabsTrigger>
             <TabsTrigger value="management">Category Management</TabsTrigger>
             <TabsTrigger value="history">Patient History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="patient" className="space-y-6">
-            <PatientSearch 
-              onPatientSelect={setSelectedPatient} 
-              selectedPatient={selectedPatient}
-            />
-            {selectedPatient && (
-              <LabTestWizard 
-                key={refreshKey}
-                patient={selectedPatient} 
-                onSaveTests={handleTestsSaved}
-              />
-            )}
+          <TabsContent value="patients" className="space-y-6">
+            <PatientsManagement key={refreshKey} />
           </TabsContent>
 
           <TabsContent value="management">
@@ -67,7 +50,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="history">
-            <PatientHistory key={refreshKey} patient={selectedPatient} />
+            <PatientHistory key={refreshKey} patient={null} />
           </TabsContent>
         </Tabs>
       </div>
