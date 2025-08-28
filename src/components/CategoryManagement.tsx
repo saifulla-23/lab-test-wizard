@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Edit, Trash2, Save, X, ChevronDown, ChevronRight, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import * as XLSX from 'xlsx';
 
 interface Category {
   id: string;
@@ -38,6 +39,7 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
   const [openCategories, setOpenCategories] = useState<string[]>([]);
   const [editCategoryData, setEditCategoryData] = useState<{ id: string; name: string; description: string }>({ id: "", name: "", description: "" });
   const [editTestData, setEditTestData] = useState<{ id: string; name: string; code: string; description: string }>({ id: "", name: "", code: "", description: "" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -282,6 +284,127 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
     setEditingTest(test.id);
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Category Name': 'Example Category 1',
+        'Category Description': 'Description for category 1',
+        'Test Name': 'Test 1',
+        'Test Code': 'T001',
+        'Test Description': 'Description for test 1'
+      },
+      {
+        'Category Name': 'Example Category 1',
+        'Category Description': 'Description for category 1',
+        'Test Name': 'Test 2',
+        'Test Code': 'T002',
+        'Test Description': 'Description for test 2'
+      },
+      {
+        'Category Name': 'Example Category 2',
+        'Category Description': 'Description for category 2',
+        'Test Name': 'Test 3',
+        'Test Code': 'T003',
+        'Test Description': 'Description for test 3'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Categories and Tests');
+    XLSX.writeFile(workbook, 'lab_tests_template.xlsx');
+    
+    toast({
+      title: "Success",
+      description: "Template downloaded successfully",
+    });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Process the uploaded data
+      const categoryMap = new Map<string, string>();
+      
+      for (const row of jsonData as any[]) {
+        const categoryName = row['Category Name']?.toString().trim();
+        const categoryDescription = row['Category Description']?.toString().trim() || '';
+        const testName = row['Test Name']?.toString().trim();
+        const testCode = row['Test Code']?.toString().trim() || '';
+        const testDescription = row['Test Description']?.toString().trim() || '';
+
+        if (!categoryName || !testName) continue;
+
+        // Create or get category
+        let categoryId = categoryMap.get(categoryName);
+        if (!categoryId) {
+          const { data: categoryData, error: categoryError } = await supabase
+            .from('custom_categories')
+            .insert([{ name: categoryName, description: categoryDescription }])
+            .select()
+            .single();
+
+          if (categoryError) {
+            // Category might already exist, try to find it
+            const { data: existingCategory } = await supabase
+              .from('custom_categories')
+              .select('id')
+              .eq('name', categoryName)
+              .single();
+            
+            categoryId = existingCategory?.id;
+          } else {
+            categoryId = categoryData.id;
+          }
+          
+          if (categoryId) {
+            categoryMap.set(categoryName, categoryId);
+          }
+        }
+
+        // Create test if category exists
+        if (categoryId) {
+          await supabase
+            .from('custom_tests')
+            .insert([{
+              name: testName,
+              code: testCode,
+              description: testDescription,
+              category_id: categoryId
+            }]);
+        }
+      }
+
+      fetchCategories();
+      fetchTests();
+      onCategoriesUpdate();
+      
+      toast({
+        title: "Success",
+        description: "Excel file uploaded and processed successfully",
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process Excel file",
+        variant: "destructive",
+      });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-card">
@@ -290,15 +413,40 @@ export const CategoryManagement = ({ onCategoriesUpdate }: CategoryManagementPro
             <CardTitle className="text-2xl bg-gradient-to-r from-medical-blue to-medical-green bg-clip-text text-transparent">
               Test Categories & Tests Management
             </CardTitle>
-            <Button
-              size="sm"
-              onClick={() => setShowAddCategory(true)}
-              className="bg-medical-blue hover:bg-medical-blue/90 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Category
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={downloadTemplate}
+                className="bg-medical-green hover:bg-medical-green/90 text-white"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-medical-blue hover:bg-medical-blue/90 text-white"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Excel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setShowAddCategory(true)}
+                className="bg-medical-blue hover:bg-medical-blue/90 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Category
+              </Button>
+            </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
         </CardHeader>
         <CardContent className="space-y-4">
           {showAddCategory && (

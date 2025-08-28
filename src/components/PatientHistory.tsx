@@ -16,6 +16,7 @@ interface Patient {
 
 interface TestSelection {
   id: string;
+  patient_id: string;
   selection_date: string;
   tests: any;
   status: string;
@@ -28,26 +29,44 @@ interface PatientHistoryProps {
 
 export const PatientHistory = ({ patient }: PatientHistoryProps) => {
   const [history, setHistory] = useState<TestSelection[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingRecord, setEditingRecord] = useState<string | null>(null);
   const [editData, setEditData] = useState<{ status: string; notes: string }>({ status: "", notes: "" });
   const { toast } = useToast();
 
   useEffect(() => {
-    if (patient) {
-      fetchPatientHistory();
+    fetchAllSavedHistory();
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
     }
-  }, [patient]);
+  };
 
-  const fetchPatientHistory = async () => {
-    if (!patient) return;
-
+  const fetchAllSavedHistory = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('patient_test_selections')
-        .select('*')
-        .eq('patient_id', patient.id)
+        .select(`
+          *,
+          patients (
+            id,
+            patient_id,
+            name
+          )
+        `)
         .order('selection_date', { ascending: false });
 
       if (error) throw error;
@@ -57,6 +76,11 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getPatientName = (patientId: string) => {
+    const patient = patients.find(p => p.id === patientId);
+    return patient ? patient.name : 'Unknown Patient';
   };
 
   const handleUpdateRecord = async () => {
@@ -74,7 +98,7 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
       if (error) throw error;
 
       setEditingRecord(null);
-      fetchPatientHistory();
+      fetchAllSavedHistory();
       toast({
         title: "Success",
         description: "Test record updated successfully",
@@ -98,7 +122,7 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
 
       if (error) throw error;
 
-      fetchPatientHistory();
+      fetchAllSavedHistory();
       toast({
         title: "Success",
         description: "Test record deleted successfully",
@@ -121,27 +145,12 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
     setEditingRecord(record.id);
   };
 
-  if (!patient) {
-    return (
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="text-lg text-medical-blue">Patient History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-8">
-            Select a patient to view their test history
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="shadow-card">
       <CardHeader>
         <CardTitle className="text-lg text-medical-blue flex items-center gap-2">
           <User className="h-5 w-5" />
-          {patient.name} - Test History
+          All Patient Test History
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -149,7 +158,7 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
           <p className="text-center py-4">Loading history...</p>
         ) : history.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
-            No test history found for this patient
+            No saved patient test history found
           </p>
         ) : (
           <div className="space-y-4">
@@ -157,11 +166,19 @@ export const PatientHistory = ({ patient }: PatientHistoryProps) => {
               <Card key={record.id} className="border-l-4 border-l-medical-blue">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-medical-blue" />
-                      <span className="font-medium">
-                        {new Date(record.selection_date).toLocaleDateString()}
-                      </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-medical-blue" />
+                        <span className="font-medium text-medical-blue">
+                          {getPatientName(record.patient_id)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-medical-green" />
+                        <span className="font-medium">
+                          {new Date(record.selection_date).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge 
