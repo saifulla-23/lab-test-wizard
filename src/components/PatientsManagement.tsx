@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserPlus, Calendar, TestTube, Save, Edit, Trash2, Copy, Plus, Minus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Patient {
   id: string;
@@ -465,40 +466,69 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="text-xl bg-gradient-to-r from-medical-blue to-medical-green bg-clip-text text-transparent">
-            Patients List
+            Select Patient for Test Assignment
           </CardTitle>
         </CardHeader>
         <CardContent>
           {patients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p>No patients added yet.</p>
+              <p>No patients available.</p>
               <p>Use the Add Patient button above to create new patients.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {patients.map((patient) => (
-                <Card key={patient.id} className="border-l-4 border-l-primary">
+              <div className="space-y-2">
+                <Label htmlFor="patient-select">Select Patient</Label>
+                <Select value={selectedPatientForTests} onValueChange={setSelectedPatientForTests}>
+                  <SelectTrigger id="patient-select">
+                    <SelectValue placeholder="Choose a patient..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.name} ({patient.patient_id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedPatientForTests && (
+                <Card className="border-l-4 border-l-primary">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-semibold text-lg">{patient.name}</h3>
-                        <p className="text-sm text-muted-foreground">ID: {patient.patient_id}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Added: {new Date(patient.created_at).toLocaleDateString()}
-                        </p>
+                        {(() => {
+                          const patient = patients.find(p => p.id === selectedPatientForTests);
+                          return patient ? (
+                            <>
+                              <h3 className="font-semibold text-lg">{patient.name}</h3>
+                              <p className="text-sm text-muted-foreground">ID: {patient.patient_id}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Added: {new Date(patient.created_at).toLocaleDateString()}
+                              </p>
+                            </>
+                          ) : null;
+                        })()}
                       </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setEditingPatient(patient)}
+                          onClick={() => {
+                            const patient = patients.find(p => p.id === selectedPatientForTests);
+                            if (patient) setEditingPatient(patient);
+                          }}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleDeletePatient(patient.id)}
+                          onClick={() => {
+                            handleDeletePatient(selectedPatientForTests);
+                            setSelectedPatientForTests("");
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -507,32 +537,37 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        {patient.date_of_birth && (
-                          <div>
-                            <span className="font-medium">DOB: </span>
-                            {new Date(patient.date_of_birth).toLocaleDateString()}
+                      {(() => {
+                        const patient = patients.find(p => p.id === selectedPatientForTests);
+                        return patient ? (
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            {patient.date_of_birth && (
+                              <div>
+                                <span className="font-medium">DOB: </span>
+                                {new Date(patient.date_of_birth).toLocaleDateString()}
+                              </div>
+                            )}
+                            {patient.gender && (
+                              <div>
+                                <span className="font-medium">Gender: </span>
+                                {patient.gender}
+                              </div>
+                            )}
+                            {patient.phone && (
+                              <div>
+                                <span className="font-medium">Phone: </span>
+                                {patient.phone}
+                              </div>
+                            )}
+                            {patient.address && (
+                              <div className="col-span-2">
+                                <span className="font-medium">Address: </span>
+                                {patient.address}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {patient.gender && (
-                          <div>
-                            <span className="font-medium">Gender: </span>
-                            {patient.gender}
-                          </div>
-                        )}
-                        {patient.phone && (
-                          <div>
-                            <span className="font-medium">Phone: </span>
-                            {patient.phone}
-                          </div>
-                        )}
-                        {patient.address && (
-                          <div className="col-span-2">
-                            <span className="font-medium">Address: </span>
-                            {patient.address}
-                          </div>
-                        )}
-                      </div>
+                        ) : null;
+                      })()}
 
                       {/* Test Categories and Selection */}
                       <div className="border-t pt-4">
@@ -540,7 +575,7 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                         <Accordion type="single" collapsible className="w-full">
                           {categories.map((category) => {
                             const categoryTests = getTestsForCategory(category.id);
-                            const selectedPatientTests = selectedTests[patient.id] || [];
+                            const selectedPatientTests = selectedTests[selectedPatientForTests] || [];
                             
                             return (
                               <AccordionItem key={category.id} value={category.id}>
@@ -576,8 +611,8 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                                             variant={isSelected ? "destructive" : "default"}
                                             onClick={() => 
                                               isSelected 
-                                                ? handleRemoveTestFromPatient(patient.id, test.id)
-                                                : handleAddTestToPatient(patient.id, test)
+                                                ? handleRemoveTestFromPatient(selectedPatientForTests, test.id)
+                                                : handleAddTestToPatient(selectedPatientForTests, test)
                                             }
                                           >
                                             {isSelected ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -594,24 +629,27 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                       </div>
 
                       {/* Selected Tests Summary and Actions */}
-                      {selectedTests[patient.id] && selectedTests[patient.id].length > 0 && (
+                      {selectedTests[selectedPatientForTests] && selectedTests[selectedPatientForTests].length > 0 && (
                         <div className="border-t pt-4">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-medium">
-                              Selected Tests ({selectedTests[patient.id].length})
+                              Selected Tests ({selectedTests[selectedPatientForTests].length})
                             </h4>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleCopyPatientTests(patient.id)}
+                                onClick={() => handleCopyPatientTests(selectedPatientForTests)}
                               >
                                 <Copy className="h-4 w-4 mr-2" />
                                 Copy Details
                               </Button>
                               <Button
                                 size="sm"
-                                onClick={() => handleSaveTestsForPatient(patient.id)}
+                                onClick={() => {
+                                  handleSaveTestsForPatient(selectedPatientForTests);
+                                  setSelectedPatientForTests("");
+                                }}
                               >
                                 <Save className="h-4 w-4 mr-2" />
                                 Save Tests
@@ -619,7 +657,7 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {selectedTests[patient.id].map((test) => (
+                            {selectedTests[selectedPatientForTests].map((test) => (
                               <Badge key={test.id} variant="secondary">
                                 {test.name}
                                 {test.code && ` (${test.code})`}
@@ -631,7 +669,7 @@ ${Object.entries(categorizedTests).map(([category, tests]) =>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </div>
           )}
         </CardContent>
