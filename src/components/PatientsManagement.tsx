@@ -169,17 +169,19 @@ export const PatientsManagement = () => {
         .insert([{
           patient_id: patientId,
           tests: patientTests as any,
-          status: 'pending'
+          status: 'completed'
         }]);
 
       if (error) throw error;
 
+      // Clear selected tests and remove patient from main list
       setSelectedTests(prev => ({ ...prev, [patientId]: [] }));
+      setPatients(prev => prev.filter(p => p.id !== patientId));
       fetchData();
       
       toast({
         title: "Success",
-        description: "Tests saved for patient",
+        description: "Tests saved and moved to Patient History",
       });
     } catch (error) {
       console.error('Error saving tests:', error);
